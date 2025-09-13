@@ -5,7 +5,7 @@ import torchvision
 import torch.nn as nn
 import torch.nn.functional as F
 
-from model.backbone.depthanythingv2 import DepthAnythingFeature
+from model.backbone.waftv1_dav2 import DepthAnythingFeature
 from model.backbone.vit import VisionTransformer, MODEL_CONFIGS
 
 from utils.utils import coords_grid, Padder, bilinear_sampler

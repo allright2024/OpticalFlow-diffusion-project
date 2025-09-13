@@ -108,13 +108,17 @@ def eval(args):
     model = model.cuda()
     model.eval()
     wrapped_model = InferenceWrapper(model, scale=args.scale, train_size=args.image_size, pad_to_train_size=False, tiling=False)
+    if args.output_path is not None:
+        output_path = args.output_path
+    else:
+        output_path = f'../{args.dataset}_submission'
     with torch.no_grad():
         if args.dataset == 'spring':
-            create_spring_submission(args, wrapped_model, output_path='../spring_submission')
+            create_spring_submission(args, wrapped_model, output_path=output_path)
         elif args.dataset == 'sintel':
-            create_sintel_submission(args, wrapped_model, output_path='../sintel_submission')
+            create_sintel_submission(args, wrapped_model, output_path=output_path)
         elif args.dataset == 'kitti':
-            create_kitti_submission(args, wrapped_model, output_path='../kitti_submission')
+            create_kitti_submission(args, wrapped_model, output_path=output_path)
 
 
 def main():
@@ -123,6 +127,7 @@ def main():
     parser.add_argument('--ckpt', help='checkpoint path', required=True, type=str)
     parser.add_argument('--dataset', help='dataset to evaluate on', choices=['sintel', 'kitti', 'spring'], required=True, type=str)
     parser.add_argument('--scale', help='scale factor for input images', default=0.0, type=float)
+    parser.add_argument('--output_path', help='output path', default=None, type=str)
     args = parse_args(parser)
     eval(args)
 

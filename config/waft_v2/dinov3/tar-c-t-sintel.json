@@ -1,11 +1,11 @@
 {
-    "name": "tar-c-t",
-    "dataset": "things",
+    "name": "tar-c-t-sintel",
+    "dataset": "TSKH",
     "gpus": [0, 1, 2, 3, 4, 5, 6, 7],
 
-    "dav2_backbone": "vits",
-    "network_backbone": "vits",
-    "algorithm": "vitwarp",
+    "feature_encoder": "dinov3",
+    "iterative_module": "vits",
+    "algorithm": "waftv2",
     "use_var": true,
     "var_min": 0,
     "var_max": 10,
@@ -22,5 +22,5 @@
     "gamma": 0.85,
     "num_steps": 200000,
     
-    "restore_ckpt": null
+    "restore_ckpt": "/n/fs/circuitnn/WAFT/checkpoints/tar-c-t/waftv2/dinov3/42/final.pth"
 }

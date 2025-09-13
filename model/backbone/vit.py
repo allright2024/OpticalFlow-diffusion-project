@@ -14,6 +14,7 @@ MODEL_CONFIGS = {
     'vits': {'encoder': 'vit_small_patch16_224', 'features': 64, 'out_channels': [48, 96, 192, 384]},
     'vitt': {'encoder': 'vit_tiny_patch16_224', 'features': 32, 'out_channels': [24, 48, 96, 192]}
 }
+
 class VisionTransformer(nn.Module):
     def __init__(self, model_name, input_dim, patch_size=16):
         super(VisionTransformer, self).__init__()

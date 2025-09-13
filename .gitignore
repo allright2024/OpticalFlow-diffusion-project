@@ -11,6 +11,7 @@ runs
 results
 */__pycache__/*
 checkpoints
+depth-anything-ckpts/
 weights
 *.ckpt
 *.pth

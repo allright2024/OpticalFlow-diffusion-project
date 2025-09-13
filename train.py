@@ -49,8 +49,16 @@ def train(args, rank=0, world_size=1, use_ddp=False):
     if rank == 0:
         avg_loss = AverageMeter()
         avg_epe = AverageMeter()
+
+        if args.algorithm == 'waftv2':
+            args.exp_name = f"{args.algorithm}-{args.feature_encoder}-{args.seed}"
+        else:
+            args.feature_encoder = 'dav2'
+            args.exp_name = f"{args.algorithm}-{args.feature_encoder}-{args.seed}"
+
         wandb.init(
-            project=args.name
+            project=args.name,
+            name=args.exp_name,
         )
     if args.restore_ckpt is not None:
         load_ckpt(model, args.restore_ckpt)
@@ -95,21 +103,21 @@ def train(args, rank=0, world_size=1, use_ddp=False):
             optimizer.step()
             scheduler.step()
             if total_steps % VAL_FREQ == VAL_FREQ - 1 and rank == 0:
-                PATH = 'checkpoints/%d_%s.pth' % (total_steps+1, args.name)
-                torch.save(model.module.state_dict(), PATH)
-            
+                save_dir = os.path.join('checkpoints', str(args.name), str(args.algorithm), str(args.feature_encoder), str(args.seed))
+                os.makedirs(save_dir, exist_ok=True)
+                torch.save(model.module.state_dict(), os.path.join(save_dir, f"{total_steps+1}.pth"))
+
             if total_steps > args.num_steps:
                 should_keep_training = False
                 break
             
             total_steps += 1
 
-    PATH = 'checkpoints/%s.pth' % args.name
     if rank == 0:
-        torch.save(model.module.state_dict(), PATH)
+        save_dir = os.path.join('checkpoints', str(args.name), str(args.algorithm), str(args.feature_encoder), str(args.seed))
+        os.makedirs(save_dir, exist_ok=True)
+        torch.save(model.module.state_dict(), os.path.join(save_dir, 'final.pth'))
         wandb.finish()
-        
-    return PATH
 
 def main(rank, world_size, args, use_ddp):
     if use_ddp:

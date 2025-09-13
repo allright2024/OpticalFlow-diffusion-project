@@ -35,6 +35,13 @@ def fetch_dataloader(args, rank=0, world_size=1, use_ddp=False):
         clean_dataset = FlyingThings3D(aug_params, dstype='frames_cleanpass')
         final_dataset = FlyingThings3D(aug_params, dstype='frames_finalpass')
         train_dataset = clean_dataset + final_dataset
+    
+    elif args.dataset == 'cplust':
+        aug_params = {'crop_size': args.image_size, 'min_scale': args.scale - 0.4, 'max_scale': args.scale + 0.8, 'do_flip': True}
+        chairs_dataset = FlyingChairs(aug_params, split='training')
+        clean_dataset = FlyingThings3D(aug_params, dstype='frames_cleanpass')
+        final_dataset = FlyingThings3D(aug_params, dstype='frames_finalpass')
+        train_dataset = clean_dataset + final_dataset + chairs_dataset
 
     elif args.dataset == 'sintel':
         aug_params = {'crop_size': args.image_size, 'min_scale': args.scale - 0.2, 'max_scale': args.scale + 0.6, 'do_flip': True}
