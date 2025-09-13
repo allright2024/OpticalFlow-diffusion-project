@@ -53,7 +53,7 @@ Please also install [xformers](https://github.com/facebookresearch/xformers) fol
 
 ## Model Zoo
 
-Google Drive: [link](https://drive.google.com/drive/folders/1qimz12pIEwktiBYwYtPQcCrYykBHw-bX?usp=sharing).
+Google Drive: [link](https://drive.google.com/drive/folders/1joBWKGoH2RUdCgcge8Tz2osOHcQUX5m_?usp=sharing).
 
 ## Datasets
 To evaluate/train WAFT, you will need to download the required datasets: [FlyingChairs](https://lmb.informatik.uni-freiburg.de/resources/datasets/FlyingChairs.en.html#flyingchairs), [FlyingThings3D](https://lmb.informatik.uni-freiburg.de/resources/datasets/SceneFlowDatasets.en.html), [Sintel](http://sintel.is.tue.mpg.de/), [KITTI](http://www.cvlibs.net/datasets/kitti/eval_scene_flow.php?benchmark=flow), [HD1K](http://hci-benchmark.iwr.uni-heidelberg.de/), [TartanAir](https://theairlab.org/tartanair-dataset/), and [Spring](https://spring-benchmark.org/). Please also check [SEA-RAFT](https://github.com/princeton-vl/SEA-RAFT) for more details.
