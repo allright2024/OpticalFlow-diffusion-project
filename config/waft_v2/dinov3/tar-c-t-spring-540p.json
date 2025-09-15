@@ -22,5 +22,5 @@
     "gamma": 0.85,
     "num_steps": 200000,
 
-    "restore_ckpt": "/n/fs/circuitnn/WAFT/checkpoints/tar-c-t/waftv2/dinov3/42/final.pth"
+    "restore_ckpt": null
 }

@@ -22,5 +22,5 @@
     "gamma": 0.85,
     "num_steps": 50000,
     
-    "restore_ckpt": "/n/fs/circuitnn/WAFT/checkpoints/tar/waftv2/twins/42/final.pth"
+    "restore_ckpt": null
 }
