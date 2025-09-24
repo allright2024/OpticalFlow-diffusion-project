@@ -39,7 +39,7 @@ If you find WAFT useful for your work, please consider citing our academic paper
 ```
 
 ## News
-- [2025/09] Explore WAFTv2, our latest version with sota performance on all benchmarks and multiple backbone supports (Twins/DAv2/DINOv3).
+- [2025/09] WAFT now achieves sota performance on all benchmarks and supports multiple backbones (Twins/DAv2/DINOv3).
 
 ## Requirements
 Our code is developed with pytorch 2.7.0, CUDA 12.8 and python 3.12. 
@@ -63,15 +63,15 @@ To evaluate/train WAFT, you will need to download the required datasets: [Flying
 You may need to prepare pre-trained [DepthAnythingV2](https://github.com/DepthAnything/Depth-Anything-V2) or [DINOv3](https://ai.meta.com/dinov3/) before you start training corresponding models.
 
 ```Shell
-python train.py --cfg config/waft_v2/twins/chairs.json
-python train.py --cfg config/waft_v2/twins/chairs-things.json --restore_ckpt ckpts/twins/chairs.pth
+python train.py --cfg config/a2/twins/chairs.json
+python train.py --cfg config/a2/twins/chairs-things.json --restore_ckpt ckpts/twins/chairs.pth
 ```
 
 ## Evaluation & Submission
 
 ```Shell
-python evaluate --cfg config/waft_v2/twins/chairs-things.json --ckpt ckpts/twins/zero-shot.pth --dataset sintel
-python submission --cfg config/waft_v2/twins/tar-c-t-kitti.json --ckpt ckpts/twins/kitti.pth --dataset kitti
+python evaluate --cfg config/a2/twins/chairs-things.json --ckpt ckpts/twins/zero-shot.pth --dataset sintel
+python submission --cfg config/a2/twins/tar-c-t-kitti.json --ckpt ckpts/twins/kitti.pth --dataset kitti
 ```
 
 ## Acknowledgements
