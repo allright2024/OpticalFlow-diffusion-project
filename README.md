@@ -1,23 +1,22 @@
 # WAFT
 
-[[Paper](https://arxiv.org/abs/2506.21526)]
+[[Paper](https://arxiv.org/abs/2506.21526v2)]
 
 We introduce Warping-Alone Field Transforms (WAFT), a simple and effective
-method for optical flow. WAFT is similar to RAFT but replaces cost volume
-with high-resolution warping, achieving better accuracy with lower memory cost.
-This design challenges the conventional wisdom that constructing cost volumes is
-necessary for strong performance. WAFT is a simple and flexible meta-architecture
+method for optical flow. WAFT is similar to RAFT but replaces cost volume with
+high-resolution warping, achieving better accuracy with lower memory cost. This
+design challenges the conventional wisdom that constructing cost volumes is necessary for strong performance. WAFT is a simple and flexible meta-architecture
 with minimal inductive biases and reliance on custom designs. Compared with
-existing methods, WAFT ranks 1st on Spring and KITTI benchmarks, achieves
-the best zero-shot generalization on KITTI, while being up to 4.1x faster than
-methods with similar performance.
+existing methods, WAFT ranks 1st on Spring, Sintel, and KITTI benchmarks,
+achieves the best zero-shot generalization on KITTI, while being up to 4.1× faster
+than methods with similar performance.
 
 <img src="assets/Vis.png" width='1000'>
 
 If you find WAFT useful for your work, please consider citing our academic paper:
 
 <h3 align="center">
-    <a href="https://arxiv.org/abs/2506.21526">
+    <a href="https://arxiv.org/abs/2506.21526v2">
         WAFT: Warping-Alone Field Transforms for Optical Flow
     </a>
 </h3>
@@ -27,14 +26,11 @@ If you find WAFT useful for your work, please consider citing our academic paper
 </p>
 
 ```
-@misc{wang2025waftwarpingalonefieldtransforms,
-      title={WAFT: Warping-Alone Field Transforms for Optical Flow}, 
-      author={Yihan Wang and Jia Deng},
-      year={2025},
-      eprint={2506.21526},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV},
-      url={https://arxiv.org/abs/2506.21526}, 
+@article{wang2025waft,
+  title={WAFT: Warping-Alone Field Transforms for Optical Flow},
+  author={Wang, Yihan and Deng, Jia},
+  journal={arXiv preprint arXiv:2506.21526},
+  year={2025}
 }
 ```
 
