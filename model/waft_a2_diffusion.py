@@ -135,11 +135,18 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
         self.warp_linear = nn.Conv2d(3*self.iter_dim+2, self.iter_dim, 1, 1, 0, bias=True)
         self.refine_transform = nn.Conv2d(self.iter_dim//2*3, self.iter_dim, 1, 1, 0, bias=True)
         
-        self.upsample_weight = nn.Sequential(
+        self.upsample_weight_2x = nn.Sequential(
             nn.Conv2d(self.iter_dim, 2*self.iter_dim, 3, padding=1, bias=True),
             nn.ReLU(inplace=True),
             nn.Conv2d(2*self.iter_dim, 4*9, 1, padding=0, bias=True)
         )
+        
+        self.upsample_weight_4x = nn.Sequential(
+            nn.Conv2d(self.iter_dim, 2*self.iter_dim, 3, padding=1, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(2*self.iter_dim, 16*9, 1, padding=0, bias=True) # 36 channels
+        )
+        
         self.flow_head = nn.Sequential(
             nn.Conv2d(self.iter_dim, 2*self.iter_dim, 3, padding=1, bias=True),
             nn.ReLU(inplace=True),
@@ -175,12 +182,12 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
         tf = torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], inplace=False)
         return tf(img/255.0).contiguous()
     
-    def upsample_data(self, flow, info, mask):
+    def upsample_data(self, flow, info, mask, factor=2):
         N, C, H, W = info.shape
-        mask = mask.view(N, 1, 9, 2, 2, H, W)
+        mask = mask.view(N, 1, 9, factor, factor, H, W)
         mask = torch.softmax(mask, dim=2)
 
-        up_flow = F.unfold(2 * flow, [3, 3], padding=1)
+        up_flow = F.unfold(factor * flow, [3, 3], padding=1)
         up_flow = up_flow.view(N, 2, 9, 1, 1, H, W)
         up_info = F.unfold(info, [3, 3], padding=1)
         up_info = up_info.view(N, C, 9, 1, 1, H, W)
@@ -190,7 +197,7 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
         up_info = torch.sum(mask * up_info, dim=2)
         up_info = up_info.permute(0, 1, 4, 2, 5, 3)
         
-        return up_flow.reshape(N, 2, 2*H, 2*W), up_info.reshape(N, C, 2*H, 2*W)
+        return up_flow.reshape(N, 2, factor*H, factor*W), up_info.reshape(N, C, factor*H, factor*W)
     
     def _prepare_targets(self, flow_gt):
         noise = torch.randn(flow_gt.shape, device=flow_gt.device)
@@ -212,9 +219,6 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
 
         return sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
 
-    # =========================================================
-    # Stage 1: Diffusion Process (at 1/4 Resolution)
-    # =========================================================
     def _train_dfm(self, fmap1_4x, fmap2_4x, flow_gt, net_4x, coords0_4x, coords1_4x):
         b, c, h, w = fmap1_4x.shape
         
@@ -240,7 +244,7 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
             net_4x = self.refine_transform(torch.cat([refine_outs['out'], net_4x], dim=1))
             
             flow_update = self.flow_head(net_4x)
-            weight_update = .25 * self.upsample_weight(net_4x)
+            weight_update = .125 * self.upsample_weight_4x(net_4x)
             
             coords1_4x = coords1_4x + flow_update[:, :2]
             info_4x = flow_update[:, 2:]
@@ -249,10 +253,8 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
             
             
             
-            flow_up_4x, info_up_4x = self.upsample_data(curr_flow_4x, info_4x, weight_update) # 1/4 -> 1/2
-            
-            flow_full = F.interpolate(flow_up_4x * 2, scale_factor=2, mode='bilinear', align_corners=True)
-            info_full = F.interpolate(info_up_4x, scale_factor=2, mode='bilinear', align_corners=True)
+            flow_full, info_full = self.upsample_data(curr_flow_4x, info_4x, weight_update, factor=4)
+
             
             flow_predictions.append(flow_full)
             info_predictions.append(info_full)
@@ -340,40 +342,30 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
         x_pred = flow / self.norm_const_4x
 
         return x_pred, flow_s, [net, up_mask, coords1] 
-    # =========================================================
-    # Stage 2: Refinement Process (at 1/2 Resolution)
-    # =========================================================
     def _refine_stage(self, fmap1_2x, fmap2_2x, net_2x, coords0_2x, coords1_2x):
         flow_predictions = []
         info_predictions = []
         
-        # Standard WAFTv2 Iterative Refinement
         for itr in range(self.refine_iters):
             flow_2x = coords1_2x - coords0_2x
             
-            # Warp
             coords2 = (coords0_2x + flow_2x).detach()
             warp_2x = bilinear_sampler(fmap2_2x, coords2.permute(0, 2, 3, 1))
             
-            # ViT Input
             refine_inp = self.warp_linear(torch.cat([fmap1_2x, warp_2x, net_2x, flow_2x], dim=1))
             
-            # [Standard Call] No Time Injection
             refine_outs = self.refine_net(refine_inp)
             
-            # Update Net
             net_2x = self.refine_transform(torch.cat([refine_outs['out'], net_2x], dim=1))
             
-            # Predict
             flow_update = self.flow_head(net_2x)
             weight_update = .25 * self.upsample_weight(net_2x)
             
             coords1_2x = coords1_2x + flow_update[:, :2]
             info_2x = flow_update[:, 2:]
             
-            # Upsample (1/2 -> Full)
             curr_flow_2x = coords1_2x - coords0_2x
-            flow_up, info_up = self.upsample_data(curr_flow_2x, info_2x, weight_update)
+            flow_up, info_up = self.upsample_data(curr_flow_2x, info_2x, weight_update, factor=2)
             
             flow_predictions.append(flow_up)
             info_predictions.append(info_up)
@@ -401,22 +393,16 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
         fmap1_4x = F.interpolate(fmap1_2x, scale_factor=0.5, mode='area')
         fmap2_4x = F.interpolate(fmap2_2x, scale_factor=0.5, mode='area')
         
-        # Init Net & Coords
-        # Net for 4x
         net_init = self.hidden_conv(torch.cat([fmap1_2x, fmap2_2x], dim=1))
         net_4x = F.avg_pool2d(net_init, 2, 2)
         coords0_4x = coords_grid(N, H//4, W//4, device=image1.device)
         coords1_4x = coords0_4x.clone()
         
-        # Norm Const for 4x
         self.norm_const_4x = torch.as_tensor([W//4, H//4], dtype=torch.float, device=image1.device).view(1, 2, 1, 1)
         
         flow_list = []
         info_list = []
 
-        # =================================================
-        # Stage 1: Diffusion (1/4 Res)
-        # =================================================
         if self.training:
             coords1_4x = coords1_4x.detach()
             flow_predictions_diff, coords1_4x, net_4x, info_predictions_diff = self._train_dfm(fmap1_4x, fmap2_4x, flow_gt, net_4x, coords0_4x, coords1_4x)
@@ -425,37 +411,20 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
         else:
             coords1_4x, net_4x, _ = self._ddim_sample(fmap1_4x, fmap2_4x, net_4x, coords0_4x, coords1_4x)
         
-        # =================================================
-        # Transition: 1/4 -> 1/2 Res (FlowDiffuser Logic)
-        # =================================================
-        # 1. Flow Upsample: (Coords_4x - Coords_4x_Init) * 2 -> Flow_2x
         current_flow_4x = coords1_4x - coords0_4x
         flow_2x_init = F.interpolate(current_flow_4x * 2, scale_factor=2, mode='bilinear', align_corners=True)
         
-        # 2. Coords 2x Init
         coords0_2x = coords_grid(N, H//2, W//2, device=image1.device)
         coords1_2x = coords0_2x + flow_2x_init
         
-        # 3. Net Upsample
         net_2x = F.interpolate(net_4x, scale_factor=2, mode='bilinear', align_corners=True)
         
-        # =================================================
-        # Stage 2: Refinement (1/2 Res)
-        # =================================================
-        # 여기서 coords1_2x는 Diffusion 결과로 초기화된 상태
         flow_predictions_refine, info_predictions_refine = self._refine_stage(fmap1_2x, fmap2_2x, net_2x, coords0_2x, coords1_2x)
         flow_list.extend(flow_predictions_refine)
         info_list.extend(info_predictions_refine)
         
-        # =================================================
-        # Post-processing (Loss or Output)
-        # =================================================
-        # ... (Unpadding and Output formatting logic same as original WAFTv2) ...
-        
-        # (For brevity, reusing the final formatting logic)
         final_output = {}
         
-        # Unpad all predictions
         for i in range(len(flow_list)):
             flow_list[i] = padder.unpad(flow_list[i])
             info_list[i] = padder.unpad(info_list[i])

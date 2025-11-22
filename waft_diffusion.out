@@ -1,0 +1,115 @@
+nohup: ignoring input
+Training with 22232 image pairs
+/venv/waft/lib/python3.12/site-packages/torch/functional.py:505: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at /pytorch/aten/src/ATen/native/TensorShape.cpp:4317.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+[000000] Loss: 99.1112, EPE: 27.7052
+[000100] Loss: 56.2570, EPE: 24.3249
+[000200] Loss: 25.0905, EPE: 23.0469
+[000300] Loss: 24.9292, EPE: 23.5585
+[000400] Loss: 24.8701, EPE: 23.1280
+[000500] Loss: 24.7282, EPE: 23.0131
+[000600] Loss: 24.1740, EPE: 21.2671
+[000700] Loss: 24.3858, EPE: 22.7715
+[000800] Loss: 24.4207, EPE: 23.1309
+[000900] Loss: 24.2242, EPE: 22.5678
+[001000] Loss: 23.7675, EPE: 21.1513
+[001100] Loss: 24.3062, EPE: 23.2670
+[001200] Loss: 24.2492, EPE: 23.1076
+[001300] Loss: 24.1352, EPE: 22.0115
+[001400] Loss: 24.2600, EPE: 23.2154
+[001500] Loss: 23.8370, EPE: 21.9903
+[001600] Loss: 23.5343, EPE: 20.8974
+[001700] Loss: 23.9313, EPE: 22.4280
+[001800] Loss: 23.6565, EPE: 21.1577
+[001900] Loss: 23.0980, EPE: 19.8748
+[002000] Loss: 23.0877, EPE: 20.0583
+[002100] Loss: 23.0005, EPE: 19.2115
+[002200] Loss: 22.7404, EPE: 19.1799
+[002300] Loss: 22.3937, EPE: 18.8362
+[002400] Loss: 22.2195, EPE: 18.3016
+[002500] Loss: 22.1193, EPE: 18.1627
+[002600] Loss: 20.6305, EPE: 14.1457
+[002700] Loss: 20.5610, EPE: 13.9122
+[002800] Loss: 19.9853, EPE: 12.2310
+[002900] Loss: 19.9063, EPE: 13.3129
+[003000] Loss: 19.6011, EPE: 12.2811
+[003100] Loss: 18.9350, EPE: 11.5223
+[003200] Loss: 18.6567, EPE: 10.3323
+[003300] Loss: 18.6758, EPE: 11.2616
+[003400] Loss: 18.6274, EPE: 10.4445
+[003500] Loss: 18.0393, EPE: 10.2612
+[003600] Loss: 17.9703, EPE: 10.0740
+[003700] Loss: 18.1974, EPE: 9.7501
+[003800] Loss: 18.0222, EPE: 10.4883
+[003900] Loss: 17.7142, EPE: 9.8680
+[004000] Loss: 17.1530, EPE: 9.1067
+[004100] Loss: 17.4337, EPE: 8.9024
+[004200] Loss: 17.3649, EPE: 9.0090
+[004300] Loss: 17.4313, EPE: 9.1105
+[004400] Loss: 16.7281, EPE: 8.1910
+[004500] Loss: 17.1036, EPE: 8.6397
+[004600] Loss: 16.6442, EPE: 8.2617
+[004700] Loss: 17.1231, EPE: 9.0499
+[004800] Loss: 16.8522, EPE: 8.5214
+[004900] Loss: 16.4639, EPE: 8.5538
+[005000] Loss: 16.2846, EPE: 8.1640
+[005100] Loss: 16.3298, EPE: 8.1222
+[005200] Loss: 16.1631, EPE: 8.2084
+[005300] Loss: 16.0543, EPE: 8.3424
+[005400] Loss: 16.0948, EPE: 8.1965
+[005500] Loss: 16.8702, EPE: 8.7770
+[005600] Loss: 16.1260, EPE: 7.8539
+[005700] Loss: 16.2155, EPE: 8.7306
+[005800] Loss: 15.8511, EPE: 7.9501
+[005900] Loss: 16.0906, EPE: 8.1425
+[006000] Loss: 15.8088, EPE: 7.8038
+[006100] Loss: 15.4139, EPE: 7.7063
+[006200] Loss: 15.4538, EPE: 7.6726
+[006300] Loss: 15.3770, EPE: 7.0948
+[006400] Loss: 15.6941, EPE: 7.8890
+[006500] Loss: 15.7651, EPE: 8.2157
+[006600] Loss: 15.4605, EPE: 7.9527
+[006700] Loss: 15.8180, EPE: 8.0815
+[006800] Loss: 15.1892, EPE: 6.9337
+[006900] Loss: 15.4518, EPE: 7.7199
+[007000] Loss: 15.1812, EPE: 7.3697
+[007100] Loss: 15.4752, EPE: 6.7759
+[007200] Loss: 14.8414, EPE: 6.2351
+[007300] Loss: 14.9884, EPE: 7.1959
+[007400] Loss: 14.8956, EPE: 6.7898
+[007500] Loss: 15.0003, EPE: 6.7794
+[007600] Loss: 15.2738, EPE: 8.3405
+[007700] Loss: 14.8040, EPE: 7.4021
+[007800] Loss: 14.7472, EPE: 7.8207
+[007900] Loss: 14.7331, EPE: 6.7647
+[008000] Loss: 14.3329, EPE: 6.5897
+[008100] Loss: 14.6351, EPE: 6.9878
+[008200] Loss: 14.5939, EPE: 6.7045
+[008300] Loss: 14.3090, EPE: 6.6411
+[008400] Loss: 14.4557, EPE: 6.4069
+[008500] Loss: 14.0414, EPE: 6.1124
+[008600] Loss: 14.9542, EPE: 6.9874
+[008700] Loss: 14.0835, EPE: 6.5386
+[008800] Loss: 14.5326, EPE: 6.8527
+[008900] Loss: 14.6096, EPE: 7.1501
+[009000] Loss: 14.3363, EPE: 6.5261
+[009100] Loss: 14.1414, EPE: 6.1854
+[009200] Loss: 14.3544, EPE: 6.7952
+[009300] Loss: 14.5994, EPE: 6.8395
+[009400] Loss: 14.6963, EPE: 7.0970
+[009500] Loss: 14.6300, EPE: 6.8968
+[009600] Loss: 14.3335, EPE: 6.2493
+[009700] Loss: 14.1981, EPE: 6.9413
+[009800] Loss: 14.3127, EPE: 6.4628
+[009900] Loss: 14.2177, EPE: 6.4040
+Traceback (most recent call last):
+  File "/workspace/WAFT/train.py", line 143, in <module>
+    main(0, 1, args, False)
+  File "/workspace/WAFT/train.py", line 130, in main
+    train(args, rank=rank, world_size=world_size, use_ddp=use_ddp)
+  File "/workspace/WAFT/train.py", line 108, in train
+    torch.save(model.module.state_dict(), os.path.join(save_dir, f"{total_steps+1}.pth"))
+               ^^^^^^^^^^^^
+  File "/venv/waft/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1964, in __getattr__
+    raise AttributeError(
+AttributeError: 'WAFTv2_FlowDiffuser_TwoStage' object has no attribute 'module'. Did you mean: 'modules'?

@@ -13,14 +13,14 @@
 
     "image_size": [368, 496],
     "scale": 0,
-    "batch_size": 4,
+    "batch_size": 6,
     "epsilon": 1e-8,
-    "lr": 4e-4,
+    "lr": 1e-4,
     "wdecay": 1e-5,
     "dropout": 0,
     "clip": 1.0,
     "gamma": 0.85,
-    "num_steps": 50000,
+    "num_steps": 200000,
     
     "restore_ckpt": null
 }

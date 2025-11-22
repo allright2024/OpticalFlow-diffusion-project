@@ -105,7 +105,7 @@ def train(args, rank=0, world_size=1, use_ddp=False):
             if total_steps % VAL_FREQ == VAL_FREQ - 1 and rank == 0:
                 save_dir = os.path.join('checkpoints', str(args.name), str(args.algorithm), str(args.feature_encoder), str(args.seed))
                 os.makedirs(save_dir, exist_ok=True)
-                torch.save(model.module.state_dict(), os.path.join(save_dir, f"{total_steps+1}.pth"))
+                torch.save(model.state_dict(), os.path.join(save_dir, f"{total_steps+1}.pth"))
 
             if total_steps > args.num_steps:
                 should_keep_training = False
@@ -116,7 +116,7 @@ def train(args, rank=0, world_size=1, use_ddp=False):
     if rank == 0:
         save_dir = os.path.join('checkpoints', str(args.name), str(args.algorithm), str(args.feature_encoder), str(args.seed))
         os.makedirs(save_dir, exist_ok=True)
-        torch.save(model.module.state_dict(), os.path.join(save_dir, 'final.pth'))
+        torch.save(model.state_dict(), os.path.join(save_dir, 'final.pth'))
         # wandb.finish()
 
 def main(rank, world_size, args, use_ddp):
