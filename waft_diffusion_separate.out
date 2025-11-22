@@ -1,1 +1,27 @@
 nohup: ignoring input
+Training with 22232 image pairs
+/venv/waft/lib/python3.12/site-packages/torch/functional.py:505: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at /pytorch/aten/src/ATen/native/TensorShape.cpp:4317.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+Traceback (most recent call last):
+  File "/workspace/WAFT/train.py", line 143, in <module>
+    main(0, 1, args, False)
+  File "/workspace/WAFT/train.py", line 130, in main
+    train(args, rank=rank, world_size=world_size, use_ddp=use_ddp)
+  File "/workspace/WAFT/train.py", line 84, in train
+    output = model(image1, image2, flow_gt=flow)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/waft/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1775, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/waft/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1786, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/WAFT/model/waft_a2_diffusion.py", line 422, in forward
+    flow_predictions_refine, info_predictions_refine = self._refine_stage(fmap1_2x, fmap2_2x, net_2x, coords0_2x, coords1_2x)
+                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/WAFT/model/waft_a2_diffusion.py", line 362, in _refine_stage
+    weight_update = .25 * self.upsample_weight(net_2x)
+                          ^^^^^^^^^^^^^^^^^^^^
+  File "/venv/waft/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1964, in __getattr__
+    raise AttributeError(
+AttributeError: 'WAFTv2_FlowDiffuser_TwoStage' object has no attribute 'upsample_weight'. Did you mean: 'upsample_weight_2x'?

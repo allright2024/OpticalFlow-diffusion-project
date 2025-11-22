@@ -359,7 +359,7 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
             net_2x = self.refine_transform(torch.cat([refine_outs['out'], net_2x], dim=1))
             
             flow_update = self.flow_head(net_2x)
-            weight_update = .25 * self.upsample_weight(net_2x)
+            weight_update = .25 * self.upsample_weight_2x(net_2x)
             
             coords1_2x = coords1_2x + flow_update[:, :2]
             info_2x = flow_update[:, 2:]
