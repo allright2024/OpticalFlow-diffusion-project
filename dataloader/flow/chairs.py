@@ -15,7 +15,7 @@ from utils import frame_utils
 from dataloader.template import FlowDataset
 
 class FlyingChairs(FlowDataset):
-    def __init__(self, aug_params=None, split='training', root='datasets/FlyingChairs/'):
+    def __init__(self, aug_params=None, split='training', root='/workspace/datasets/FlyingChairs/'):
         super(FlyingChairs, self).__init__(aug_params)
 
         images = sorted(glob(osp.join(root, 'FlyingChairs_release/data', '*.ppm')))

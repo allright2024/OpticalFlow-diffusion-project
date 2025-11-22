@@ -79,24 +79,103 @@ class VisionTransformer(nn.Module):
         out = F.interpolate(out, (h, w), mode="bilinear", align_corners=True)
         return {'out': out, 'path_1':path_1, 'path_2':path_2, 'path_3':path_3, 'path_4':path_4}  # path_1 is 1/2; path_2 is 1/4
 
-if __name__ == '__main__':
-    model = VisionTransformer('vitt', 95)
-    input = torch.randn(1, 95, 512, 768)
-    output = model(input)
-    print(output['out'].shape)
-    print(output['path_1'].shape)
-    print(output['path_2'].shape)
-    print(output['path_3'].shape)
-    print(output['path_4'].shape)
-    with torch.profiler.profile(
-        activities=[
-            torch.profiler.ProfilerActivity.CPU,
-            torch.profiler.ProfilerActivity.CUDA
-        ],
-        with_flops=True) as prof:
-            output = model(input)
+class ViTModulator(nn.Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.norm1 = nn.LayerNorm(dim)
+        self.act1 = nn.GELU()
+        self.fc1 = nn.Linear(dim, dim)
+        
+        self.act2 = nn.GELU()
+        self.fc2 = nn.Linear(dim, dim)
+        self.gamma = nn.Parameter(torch.zeros(1))
+
+    def forward(self, x, scale, shift):
+        """
+        x: (B, N, C)
+        scale, shift: (B, 1, C) -> Broadcasting됨
+        """
+        shortcut = x
+        
+        x = self.norm1(x)
+        x = self.act1(x)
+        x = self.fc1(x)
+        
+        x = x * (scale + 1) + shift
+        
+        x = self.act2(x)
+        x = self.fc2(x)
+        
+        return shortcut + x * self.gamma
+
+class SinusoidalPositionEmbeddings(nn.Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.dim = dim
+
+    def forward(self, time):
+        device = time.device
+        half_dim = self.dim // 2
+        embeddings = math.log(10000) / (half_dim - 1)
+        embeddings = torch.exp(torch.arange(half_dim, device=device) * -embeddings)
+        embeddings = time[:, None] * embeddings[None, :]
+        embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1)
+        return embeddings
+
+class VisionTransformerDFM(nn.Module):
+    def __init__(self, feature_dim=192, time_dim=128, num_modulators=4):
+        super().__init__()
+        self.time_dim = time_dim
+        self.feature_dim = feature_dim 
+        
+        self.time_mlp = nn.Sequential(
+            SinusoidalPositionEmbeddings(time_dim),
+            nn.Linear(time_dim, time_dim * 4),
+            nn.GELU(),
+            nn.Linear(time_dim * 4, time_dim),
+        )
+        
+        self.block_time_mlp = nn.Sequential(
+            nn.SiLU(), 
+            nn.Linear(time_dim, 384 * 2) 
+        )
+        
+        self.modulators = nn.ModuleList([
+            ViTModulator(384) for _ in range(num_modulators)
+        ])
     
-    print(prof.key_averages(group_by_stack_n=5).table(sort_by='self_cuda_time_total', row_limit=5))
-    events = prof.events()
-    forward_MACs = sum([int(evt.flops) for evt in events])
-    print("forward MACs: ", forward_MACs / 2 / 1e9, "G")
+    def forward(self, x, dfm_params=[]):
+        t, funcs = dfm_params
+        
+        b = t.shape[0]
+        time_emb = self.time_mlp(t) 
+        
+        style = self.block_time_mlp(time_emb)
+        
+        style = style.unsqueeze(1) 
+        
+        scale, shift = style.chunk(2, dim=-1) 
+
+        B, nc, h, w = x.shape
+        
+        x = funcs.patch_embed(x)
+        x = x + funcs.interpolate_pos_encoding(x, h, w)
+        
+        outputs = []
+        modulator_idx = 0 
+        
+        for i in range(len(funcs.blks)):
+            x = funcs.blks[i](x)
+            
+            if i in funcs.idx:
+                x_modulated = self.modulators[modulator_idx](x, scale, shift)
+                
+                outputs.append([x_modulated])
+                modulator_idx += 1
+
+        patch_h, patch_w = h // funcs.patch_size, w // funcs.patch_size
+        
+        out, path_1, path_2, path_3, path_4 = funcs.dpt_head.forward(outputs, patch_h, patch_w, return_intermediate=True)
+        out = F.interpolate(out, (h, w), mode="bilinear", align_corners=True)
+        
+        return {'out': out, 'path_1':path_1, 'path_2':path_2, 'path_3':path_3, 'path_4':path_4}
