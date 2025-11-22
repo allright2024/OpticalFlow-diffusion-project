@@ -2,26 +2,175 @@ nohup: ignoring input
 Training with 22232 image pairs
 /venv/waft/lib/python3.12/site-packages/torch/functional.py:505: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at /pytorch/aten/src/ATen/native/TensorShape.cpp:4317.)
   return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
-Traceback (most recent call last):
-  File "/workspace/WAFT/train.py", line 143, in <module>
-    main(0, 1, args, False)
-  File "/workspace/WAFT/train.py", line 130, in main
-    train(args, rank=rank, world_size=world_size, use_ddp=use_ddp)
-  File "/workspace/WAFT/train.py", line 84, in train
-    output = model(image1, image2, flow_gt=flow)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/venv/waft/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1775, in _wrapped_call_impl
-    return self._call_impl(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/venv/waft/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1786, in _call_impl
-    return forward_call(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspace/WAFT/model/waft_a2_diffusion.py", line 422, in forward
-    flow_predictions_refine, info_predictions_refine = self._refine_stage(fmap1_2x, fmap2_2x, net_2x, coords0_2x, coords1_2x)
-                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspace/WAFT/model/waft_a2_diffusion.py", line 362, in _refine_stage
-    weight_update = .25 * self.upsample_weight(net_2x)
-                          ^^^^^^^^^^^^^^^^^^^^
-  File "/venv/waft/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1964, in __getattr__
-    raise AttributeError(
-AttributeError: 'WAFTv2_FlowDiffuser_TwoStage' object has no attribute 'upsample_weight'. Did you mean: 'upsample_weight_2x'?
+[000000] Loss: 93.8330, EPE: 26.5965
+[000100] Loss: 59.7160, EPE: 23.1959
+[000200] Loss: 25.0040, EPE: 22.0467
+[000300] Loss: 25.1206, EPE: 23.5448
+[000400] Loss: 24.7012, EPE: 22.2786
+[000500] Loss: 24.8923, EPE: 23.2115
+[000600] Loss: 24.5201, EPE: 22.3487
+[000700] Loss: 24.2977, EPE: 22.2341
+[000800] Loss: 23.9596, EPE: 21.8334
+[000900] Loss: 24.4173, EPE: 22.9693
+[001000] Loss: 24.1542, EPE: 22.2745
+[001100] Loss: 24.1294, EPE: 22.8598
+[001200] Loss: 23.8240, EPE: 21.7624
+[001300] Loss: 23.6257, EPE: 21.1227
+[001400] Loss: 24.0116, EPE: 22.9402
+[001500] Loss: 23.9082, EPE: 22.4035
+[001600] Loss: 23.6784, EPE: 21.2948
+[001700] Loss: 23.9702, EPE: 22.9518
+[001800] Loss: 24.0490, EPE: 22.8139
+[001900] Loss: 23.9569, EPE: 22.1864
+[002000] Loss: 23.7393, EPE: 22.0429
+[002100] Loss: 23.7815, EPE: 22.3743
+[002200] Loss: 23.6786, EPE: 21.8595
+[002300] Loss: 23.9820, EPE: 22.1515
+[002400] Loss: 24.1619, EPE: 23.3292
+[002500] Loss: 23.9366, EPE: 22.9767
+[002600] Loss: 23.6854, EPE: 22.0815
+[002700] Loss: 23.7322, EPE: 21.6518
+[002800] Loss: 23.4439, EPE: 21.4635
+[002900] Loss: 24.1512, EPE: 22.9928
+[003000] Loss: 23.4864, EPE: 21.1515
+[003100] Loss: 23.6675, EPE: 21.9810
+[003200] Loss: 23.6421, EPE: 21.5737
+[003300] Loss: 23.2225, EPE: 20.4646
+[003400] Loss: 23.4523, EPE: 20.6989
+[003500] Loss: 23.0561, EPE: 19.3894
+[003600] Loss: 22.9824, EPE: 20.1374
+[003700] Loss: 22.7453, EPE: 18.2272
+[003800] Loss: 22.6346, EPE: 17.9952
+[003900] Loss: 22.4394, EPE: 17.3831
+[004000] Loss: 22.1253, EPE: 16.3323
+[004100] Loss: 21.4894, EPE: 15.1097
+[004200] Loss: 21.6451, EPE: 15.3221
+[004300] Loss: 21.1345, EPE: 13.6054
+[004400] Loss: 21.1594, EPE: 14.0048
+[004500] Loss: 21.1743, EPE: 13.9163
+[004600] Loss: 21.0101, EPE: 13.6687
+[004700] Loss: 20.6707, EPE: 12.7282
+[004800] Loss: 20.1001, EPE: 11.4963
+[004900] Loss: 20.1762, EPE: 11.8219
+[005000] Loss: 20.0452, EPE: 11.3261
+[005100] Loss: 19.8503, EPE: 11.1525
+[005200] Loss: 19.5451, EPE: 11.3251
+[005300] Loss: 19.2515, EPE: 10.4491
+[005400] Loss: 19.3591, EPE: 10.6315
+[005500] Loss: 18.9771, EPE: 10.2670
+[005600] Loss: 18.9946, EPE: 10.0387
+[005700] Loss: 19.1959, EPE: 9.9623
+[005800] Loss: 18.7516, EPE: 9.4185
+[005900] Loss: 18.5114, EPE: 9.5481
+[006000] Loss: 18.5604, EPE: 10.1791
+[006100] Loss: 18.4357, EPE: 9.7279
+[006200] Loss: 18.2101, EPE: 8.9927
+[006300] Loss: 17.8471, EPE: 8.9605
+[006400] Loss: 18.0328, EPE: 9.5079
+[006500] Loss: 17.7600, EPE: 8.6222
+[006600] Loss: 17.5197, EPE: 8.1087
+[006700] Loss: 17.2523, EPE: 8.2333
+[006800] Loss: 17.4882, EPE: 8.4550
+[006900] Loss: 17.6621, EPE: 8.6091
+[007000] Loss: 17.3586, EPE: 8.7160
+[007100] Loss: 16.9825, EPE: 7.9980
+[007200] Loss: 16.6369, EPE: 7.9966
+[007300] Loss: 16.8476, EPE: 7.8823
+[007400] Loss: 16.6170, EPE: 7.8803
+[007500] Loss: 16.6729, EPE: 8.1770
+[007600] Loss: 16.5163, EPE: 7.3684
+[007700] Loss: 16.5407, EPE: 7.6568
+[007800] Loss: 16.1996, EPE: 7.2628
+[007900] Loss: 17.3721, EPE: 8.7383
+[008000] Loss: 16.5257, EPE: 7.8102
+[008100] Loss: 16.1197, EPE: 7.0510
+[008200] Loss: 16.3546, EPE: 7.8449
+[008300] Loss: 16.0407, EPE: 7.4854
+[008400] Loss: 16.8918, EPE: 8.4692
+[008500] Loss: 16.0426, EPE: 6.8640
+[008600] Loss: 16.0973, EPE: 6.9552
+[008700] Loss: 16.3047, EPE: 8.4686
+[008800] Loss: 15.8897, EPE: 6.8422
+[008900] Loss: 15.7711, EPE: 6.9321
+[009000] Loss: 15.8287, EPE: 7.0878
+[009100] Loss: 16.3884, EPE: 8.3718
+[009200] Loss: 16.0826, EPE: 7.4278
+[009300] Loss: 16.1188, EPE: 7.4647
+[009400] Loss: 16.5498, EPE: 7.7102
+[009500] Loss: 16.1811, EPE: 7.9524
+[009600] Loss: 15.7221, EPE: 6.8626
+[009700] Loss: 15.9245, EPE: 7.9171
+[009800] Loss: 15.8806, EPE: 7.6427
+[009900] Loss: 16.0325, EPE: 7.7457
+[010000] Loss: 15.4566, EPE: 7.0489
+[010100] Loss: 15.3305, EPE: 6.5440
+[010200] Loss: 15.6987, EPE: 7.4948
+[010300] Loss: 15.4350, EPE: 6.8463
+[010400] Loss: 15.2920, EPE: 6.5060
+[010500] Loss: 15.5487, EPE: 6.4446
+[010600] Loss: 15.4132, EPE: 6.7087
+[010700] Loss: 14.9864, EPE: 6.3259
+[010800] Loss: 15.4631, EPE: 8.5058
+[010900] Loss: 15.5150, EPE: 7.3982
+[011000] Loss: 15.1672, EPE: 6.8817
+[011100] Loss: 15.1244, EPE: 6.6095
+[011200] Loss: 14.9457, EPE: 6.5074
+[011300] Loss: 14.8825, EPE: 5.9621
+[011400] Loss: 14.5784, EPE: 6.4513
+[011500] Loss: 15.1250, EPE: 7.0808
+[011600] Loss: 14.8194, EPE: 7.4904
+[011700] Loss: 15.0386, EPE: 6.7327
+[011800] Loss: 15.0011, EPE: 6.8052
+[011900] Loss: 15.6083, EPE: 7.0379
+[012000] Loss: 14.5770, EPE: 6.1522
+[012100] Loss: 14.4513, EPE: 6.4360
+[012200] Loss: 15.1693, EPE: 6.3261
+[012300] Loss: 14.6944, EPE: 7.0389
+[012400] Loss: 14.6926, EPE: 6.3681
+[012500] Loss: 14.7785, EPE: 6.5380
+[012600] Loss: 14.2044, EPE: 6.0423
+[012700] Loss: 14.3764, EPE: 6.2573
+[012800] Loss: 14.6392, EPE: 7.0171
+[012900] Loss: 14.4709, EPE: 6.8564
+[013000] Loss: 14.7232, EPE: 6.9987
+[013100] Loss: 15.0192, EPE: 6.6290
+[013200] Loss: 15.3391, EPE: 6.8162
+[013300] Loss: 15.3399, EPE: 7.5608
+[013400] Loss: 14.5354, EPE: 6.4162
+[013500] Loss: 14.9355, EPE: 6.6849
+[013600] Loss: 14.6444, EPE: 6.7444
+[013700] Loss: 15.1329, EPE: 7.2615
+[013800] Loss: 14.1356, EPE: 6.1521
+[013900] Loss: 14.2029, EPE: 6.6792
+[014000] Loss: 14.9219, EPE: 7.0631
+[014100] Loss: 14.2742, EPE: 6.2407
+[014200] Loss: 14.6406, EPE: 7.2536
+[014300] Loss: 14.6308, EPE: 6.5565
+[014400] Loss: 14.0338, EPE: 6.1690
+[014500] Loss: 14.1457, EPE: 5.9847
+[014600] Loss: 14.1412, EPE: 6.4341
+[014700] Loss: 14.0818, EPE: 6.1216
+[014800] Loss: 13.7683, EPE: 6.0033
+[014900] Loss: 13.6624, EPE: 5.6728
+[015000] Loss: 13.9031, EPE: 6.0896
+[015100] Loss: 13.8725, EPE: 6.2660
+[015200] Loss: 14.6797, EPE: 7.1530
+[015300] Loss: 13.8486, EPE: 6.2056
+[015400] Loss: 14.1262, EPE: 6.6332
+[015500] Loss: 13.5204, EPE: 5.7836
+[015600] Loss: 13.7998, EPE: 6.0847
+[015700] Loss: 13.6196, EPE: 5.7373
+[015800] Loss: 13.8627, EPE: 6.0512
+[015900] Loss: 14.4570, EPE: 7.1283
+[016000] Loss: 13.5819, EPE: 5.9094
+[016100] Loss: 13.1888, EPE: 5.1282
+[016200] Loss: 13.6167, EPE: 6.2203
+[016300] Loss: 13.7943, EPE: 6.2491
+[016400] Loss: 13.4750, EPE: 6.0060
+[016500] Loss: 13.4417, EPE: 5.7978
+[016600] Loss: 13.1936, EPE: 6.0677
+[016700] Loss: 13.5866, EPE: 6.0160
+[016800] Loss: 13.5544, EPE: 6.0829
+[016900] Loss: 13.7500, EPE: 5.7677
+[017000] Loss: 13.5404, EPE: 6.1273
+[017100] Loss: 13.6545, EPE: 5.9441

@@ -11,31 +11,34 @@ from model.backbone.dinov3 import DinoV3Feature
 from model.backbone.vit import VisionTransformer, MODEL_CONFIGS, VisionTransformerDFM
 from utils.utils import coords_grid, Padder, bilinear_sampler
 
-class ConvEE(nn.Module):
-    def __init__(self, C_in, C_out):
+class ViTModulator(nn.Module):
+    def __init__(self, dim):
         super().__init__()
-        groups = 4
-        self.conv1 = nn.Sequential(
-            nn.GroupNorm(groups, C_in),  
-            nn.GELU(),
-            nn.Conv2d(C_in, C_in, 3, padding=1),
-            nn.GroupNorm(groups, C_in))
-        self.conv2 = nn.Sequential(
-            nn.GELU(),
-            nn.Conv2d(C_in, C_in, 3, padding=1))
+        self.norm1 = nn.LayerNorm(dim)
+        self.act1 = nn.GELU()
+        self.fc1 = nn.Linear(dim, dim)
+        
+        self.act2 = nn.GELU()
+        self.fc2 = nn.Linear(dim, dim)
         self.gamma = nn.Parameter(torch.zeros(1))
 
-    def forward(self, x, t_emb):
-        scale, shift = t_emb
-        x_res = x
-        x = self.conv1(x)
-
+    def forward(self, x, scale, shift):
+        """
+        x: (B, N, C)
+        scale, shift: (B, 1, C) -> Broadcasting됨
+        """
+        shortcut = x
+        
+        x = self.norm1(x)
+        x = self.act1(x)
+        x = self.fc1(x)
+        
         x = x * (scale + 1) + shift
-
-        x = self.conv2(x)
-        x_o = x * self.gamma
-
-        return x_o
+        
+        x = self.act2(x)
+        x = self.fc2(x)
+        
+        return shortcut + x * self.gamma
 
 def exists(x):
     return x is not None
@@ -167,20 +170,20 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
         self.refine_net = VisionTransformer(args.iterative_module, self.iter_dim, patch_size=8)
         
         self.time_dim = 128
-        self.refine_net_dfm = VisionTransformerDFM(feature_dim=self.iter_dim, time_dim=self.time_dim, num_modulators=4)
+        # self.refine_net_dfm = VisionTransformerDFM(feature_dim=self.iter_dim, time_dim=self.time_dim, num_modulators=4)
 
         # =========================================
-        # self.time_mlp = nn.Sequential(
-         # SinusoidalPositionEmbeddings(self.time_dim),   
-         # nn.Linear(self.time_dim, self.time_dim * 2),
-         # nn.GELU(),
-         # nn.Linear(self.time_dim * 2, self.time_dim)
-        #)
-        # self.block_time_mlp = nn.Sequential(
-        #     nn.SiLU(), 
-        #     nn.Linear(time_dim, 384 * 2) 
-        # )
-        # self.conv_ee = ConvEE(chnn, chnn)
+        self.time_mlp = nn.Sequential(
+            SinusoidalPositionEmbeddings(self.time_dim),   
+            nn.Linear(self.time_dim, self.time_dim * 2),
+            nn.GELU(),
+            nn.Linear(self.time_dim * 2, self.time_dim)
+        )
+        self.block_time_mlp = nn.Sequential(
+            nn.SiLU(), 
+            nn.Linear(self.time_dim, self.time_dim * 2) 
+        )
+        self.modulator = ViTModulator(self.time_dim)
         # =========================================
 
         self.fmap_conv = nn.Conv2d(self.pretrain_dim*2, self.iter_dim, kernel_size=1, stride=1, padding=0, bias=True)
@@ -293,16 +296,21 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
             refine_inp = self.warp_linear(torch.cat([fmap1_4x, warp_4x, net_4x, flow_4x], dim=1))
 
             # time embedding
+            time_emb = self.time_mlp(t_ii)
             # block_time_mlp
+            style = self.block_time_mlp(time_emb)
             # scale, shift
+            scale, shift = style.chunk(2, dim=-1)
+
             
-            refine_outs = self.refine_net_dfm(refine_inp, dfm_params=[t_ii, self.refine_net])
             
-            # conv_ee with refine_outs['out'] and [scale, shift]
+            refine_outs = self.refine_net(refine_inp)
+            
+            refine_outs['out'] = self.modulator(refine_outs['out'], scale, shift)
             
             net_4x = self.refine_transform(torch.cat([refine_outs['out'], net_4x], dim=1))
             
-            # net_4x = net_4x * (1 + scale) + shift
+            net_4x = net_4x * (1 + scale) + shift
             
             flow_update = self.flow_head(net_4x)
             weight_update = .125 * self.upsample_weight_4x(net_4x)
@@ -311,8 +319,6 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
             info_4x = flow_update[:, 2:]
             
             curr_flow_4x = coords1_4x - coords0_4x
-            
-            
             
             flow_full, info_full = self.upsample_data(curr_flow_4x, info_4x, weight_update, factor=4)
 
@@ -389,7 +395,7 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
                 itr = ii
                 first_step = False if itr != 0 else True
                 dfm_params = [t_ii, self.refine_net]
-                net, delta_flow = self.refine_net_dfm(net, inp8, corr, flow, itr, first_step=first_step, dfm_params=dfm_params)
+                # net, delta_flow = self.refine_net_dfm(net, inp8, corr, flow, itr, first_step=first_step, dfm_params=dfm_params)
                 up_mask = self.um4(net)
 
             coords1 = coords1 + delta_flow

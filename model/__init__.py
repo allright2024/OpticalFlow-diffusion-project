@@ -1,7 +1,7 @@
 import os
 import sys
 from model.waft_a1 import ViTWarpV8
-from model.waft_a2_diffusion import WAFTv2_FlowDiffuser_TwoStage
+from model.waft_a2_diffusion_v2 import WAFTv2_FlowDiffuser_TwoStage
 
 def fetch_model(args):
     if args.algorithm == 'waft-a1':
