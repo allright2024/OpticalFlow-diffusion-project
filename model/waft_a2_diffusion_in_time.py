@@ -8,7 +8,7 @@ import timm
 from model.backbone.twins import TwinsFeatureEncoder
 from model.backbone.waftv2_dav2 import DepthAnythingFeature
 from model.backbone.dinov3 import DinoV3Feature
-from model.backbone.vit import VisionTransformer, MODEL_CONFIGS, VisionTransformerDFM
+from model.backbone.vit_v2 import VisionTransformer, MODEL_CONFIGS, VisionTransformerDFM
 from utils.utils import coords_grid, Padder, bilinear_sampler
 
 class ConvEE(nn.Module):
@@ -169,19 +169,6 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
         self.time_dim = 128
         self.refine_net_dfm = VisionTransformerDFM(feature_dim=self.iter_dim, time_dim=self.time_dim, num_modulators=4)
 
-        # =========================================
-        # self.time_mlp = nn.Sequential(
-         # SinusoidalPositionEmbeddings(self.time_dim),   
-         # nn.Linear(self.time_dim, self.time_dim * 2),
-         # nn.GELU(),
-         # nn.Linear(self.time_dim * 2, self.time_dim)
-        #)
-        # self.block_time_mlp = nn.Sequential(
-        #     nn.SiLU(), 
-        #     nn.Linear(time_dim, 384 * 2) 
-        # )
-        # self.conv_ee = ConvEE(chnn, chnn)
-        # =========================================
 
         self.fmap_conv = nn.Conv2d(self.pretrain_dim*2, self.iter_dim, kernel_size=1, stride=1, padding=0, bias=True)
         self.hidden_conv = nn.Conv2d(self.iter_dim*2, self.iter_dim, kernel_size=1, stride=1, padding=0, bias=True)
@@ -291,18 +278,10 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
             warp_4x = bilinear_sampler(fmap2_4x, coords2.permute(0, 2, 3, 1))
             
             refine_inp = self.warp_linear(torch.cat([fmap1_4x, warp_4x, net_4x, flow_4x], dim=1))
-
-            # time embedding
-            # block_time_mlp
-            # scale, shift
             
             refine_outs = self.refine_net_dfm(refine_inp, dfm_params=[t_ii, self.refine_net])
             
-            # conv_ee with refine_outs['out'] and [scale, shift]
-            
             net_4x = self.refine_transform(torch.cat([refine_outs['out'], net_4x], dim=1))
-            
-            # net_4x = net_4x * (1 + scale) + shift
             
             flow_update = self.flow_head(net_4x)
             weight_update = .125 * self.upsample_weight_4x(net_4x)
@@ -481,8 +460,8 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
         net_2x = F.interpolate(net_4x, scale_factor=2, mode='bilinear', align_corners=True)
         
         flow_predictions_refine, info_predictions_refine = self._refine_stage(fmap1_2x, fmap2_2x, net_2x, coords0_2x, coords1_2x)
-        flow_list.extend(flow_predictions_refine)
-        info_list.extend(info_predictions_refine)
+        flow_list = flow_predictions_refine
+        info_list = info_predictions_refine
         
         final_output = {}
         

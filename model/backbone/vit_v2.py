@@ -5,16 +5,8 @@ import timm
 import math
 
 import sys
-# 'model.backbone.patch_embed'와 'thirdparty.DepthAnythingV2.depth_anything_v2.dpt'는
-# 현재 파일 위치 기준으로 import 가능해야 합니다.
-try:
-    from model.backbone.patch_embed import PatchEmbed
-    from thirdparty.DepthAnythingV2.depth_anything_v2.dpt import DPTHead
-except ImportError:
-    print("Warning: Could not import PatchEmbed or DPTHead. Ensure paths are correct.")
-    # 임시 플레이스홀더 (테스트 코드는 실행되지 않음)
-    PatchEmbed = nn.Identity
-    DPTHead = nn.Identity
+from model.backbone.patch_embed import PatchEmbed
+from thirdparty.DepthAnythingV2.depth_anything_v2.dpt import DPTHead
 
 MODEL_CONFIGS = {
     'vitl': {'encoder': 'vit_large_patch16_224', 'features': 256, 'out_channels': [256, 512, 1024, 1024]},
@@ -87,6 +79,35 @@ class VisionTransformer(nn.Module):
         out = F.interpolate(out, (h, w), mode="bilinear", align_corners=True)
         return {'out': out, 'path_1':path_1, 'path_2':path_2, 'path_3':path_3, 'path_4':path_4}  # path_1 is 1/2; path_2 is 1/4
 
+class ViTModulator(nn.Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.norm1 = nn.LayerNorm(dim)
+        self.act1 = nn.GELU()
+        self.fc1 = nn.Linear(dim, dim)
+        
+        self.act2 = nn.GELU()
+        self.fc2 = nn.Linear(dim, dim)
+        self.gamma = nn.Parameter(torch.zeros(1))
+
+    def forward(self, x, scale, shift):
+        """
+        x: (B, N, C)
+        scale, shift: (B, 1, C) -> Broadcasting됨
+        """
+        shortcut = x
+        
+        x = self.norm1(x)
+        x = self.act1(x)
+        x = self.fc1(x)
+        
+        x = x * (scale + 1) + shift
+        
+        x = self.act2(x)
+        x = self.fc2(x)
+        
+        return shortcut + x * self.gamma
+
 class SinusoidalPositionEmbeddings(nn.Module):
     def __init__(self, dim):
         super().__init__()
@@ -101,81 +122,60 @@ class SinusoidalPositionEmbeddings(nn.Module):
         embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1)
         return embeddings
 
-
 class VisionTransformerDFM(nn.Module):
-    def __init__(self, time_dim=128):
+    def __init__(self, feature_dim=192, time_dim=128, num_modulators=4):
         super().__init__()
         self.time_dim = time_dim
+        self.feature_dim = feature_dim 
         
         self.time_mlp = nn.Sequential(
             SinusoidalPositionEmbeddings(time_dim),
-            nn.Linear(time_dim, time_dim * 3),
+            nn.Linear(time_dim, time_dim * 2),
             nn.GELU(),
-            nn.Linear(time_dim * 3, time_dim * 3),
+            nn.Linear(time_dim * 2, time_dim),
         )
+        
+        self.block_time_mlp = nn.Sequential(
+            nn.SiLU(), 
+            nn.Linear(time_dim, 384 * 2) 
+        )
+        
+        self.modulators = nn.ModuleList([
+            ViTModulator(384) for _ in range(num_modulators)
+        ])
     
     def forward(self, x, dfm_params=[]):
         t, funcs = dfm_params
-        B, nc, h, w = x.shape
         
         b = t.shape[0]
         time_emb = self.time_mlp(t) 
-        time_embed = time_emb.unsqueeze(1)
+        
+        style = self.block_time_mlp(time_emb)
+        
+        style = style.unsqueeze(1) 
+        
+        scale, shift = style.chunk(2, dim=-1) 
+
+        B, nc, h, w = x.shape
         
         x = funcs.patch_embed(x)
         x = x + funcs.interpolate_pos_encoding(x, h, w)
-        x = x + time_embed
         
         outputs = []
+        modulator_idx = 0 
+        
         for i in range(len(funcs.blks)):
             x = funcs.blks[i](x)
+            
             if i in funcs.idx:
-                outputs.append([x])
+                x_modulated = self.modulators[modulator_idx](x, scale, shift)
+                
+                outputs.append([x_modulated])
+                modulator_idx += 1
 
         patch_h, patch_w = h // funcs.patch_size, w // funcs.patch_size
+        
         out, path_1, path_2, path_3, path_4 = funcs.dpt_head.forward(outputs, patch_h, patch_w, return_intermediate=True)
         out = F.interpolate(out, (h, w), mode="bilinear", align_corners=True)
-        return {'out': out, 'path_1':path_1, 'path_2':path_2, 'path_3':path_3, 'path_4':path_4}  # path_1 is 1/2; path_2 is 1/4
-
-if __name__ == '__main__':
-    B = 1
-    C_in = 95
-    H, W = 512, 768
-    
-    # DPTHead, PatchEmbed가 import되지 않으면 테스트 코드는 에러 발생
-    if 'DPTHead' in globals() and not isinstance(globals()['DPTHead'], nn.Identity):
-        model = VisionTransformer('vitt', C_in)
-        input_tensor = torch.randn(B, C_in, H, W)
         
-        # --- (MODIFIED) 더미 time_emb 생성 ---
-        # time_emb는 [B, input_dim] 차원을 가짐
-        dummy_time_emb = torch.randn(B, C_in)
-        
-        output = model(input_tensor, dummy_time_emb) # <--- time_emb 전달
-        
-        print(output['out'].shape)
-        print(output['path_1'].shape)
-        print(output['path_2'].shape)
-        print(output['path_3'].shape)
-        print(output['path_4'].shape)
-        
-        # GPU가 있을 경우 CUDA로 이동
-        if torch.cuda.is_available():
-            model = model.cuda()
-            input_tensor = input_tensor.cuda()
-            dummy_time_emb = dummy_time_emb.cuda()
-
-        with torch.profiler.profile(
-            activities=[
-                torch.profiler.ProfilerActivity.CPU,
-                torch.profiler.ProfilerActivity.CUDA
-            ],
-            with_flops=True) as prof:
-                output = model(input_tensor, dummy_time_emb) # <--- time_emb 전달
-        
-        print(prof.key_averages(group_by_stack_n=5).table(sort_by='self_cuda_time_total', row_limit=5))
-        events = prof.events()
-        forward_MACs = sum([int(evt.flops) for evt in events if evt.flops is not None])
-        print("forward MACs: ", forward_MACs / 2 / 1e9, "G")
-    else:
-        print("DPTHead or PatchEmbed not imported. Skipping __main__ test.")
+        return {'out': out, 'path_1':path_1, 'path_2':path_2, 'path_3':path_3, 'path_4':path_4}
