@@ -122,6 +122,32 @@ class SinusoidalPositionEmbeddings(nn.Module):
         embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1)
         return embeddings
 
+class CrossAttentionAdapter(nn.Module):
+    def __init__(self, dim, context_dim, num_heads=8, qkv_bias=False, qk_scale=None, attn_drop=0., proj_drop=0.):
+        super().__init__()
+        self.norm = nn.LayerNorm(dim)
+        self.cross_attn = nn.MultiheadAttention(dim, num_heads, dropout=attn_drop, batch_first=True)
+        self.gamma = nn.Parameter(torch.zeros(1))
+        
+        # Project context if dimensions don't match
+        self.context_proj = nn.Linear(context_dim, dim) if context_dim != dim else nn.Identity()
+
+    def forward(self, x, context):
+        """
+        x: (B, N, C) - Image tokens
+        context: (B, M, C_ctx) - Time embeddings (or other context)
+        """
+        shortcut = x
+        x = self.norm(x)
+        context = self.context_proj(context)
+        
+        # MultiheadAttention expects (B, N, C) if batch_first=True
+        # query=x, key=context, value=context
+        x, _ = self.cross_attn(x, context, context)
+        
+        return shortcut + x * self.gamma
+
+
 class VisionTransformerDFM(nn.Module):
     def __init__(self, feature_dim=192, time_dim=128, num_modulators=4):
         super().__init__()
@@ -142,6 +168,10 @@ class VisionTransformerDFM(nn.Module):
         
         self.modulators = nn.ModuleList([
             ViTModulator(384) for _ in range(num_modulators)
+        ])
+        
+        self.cross_attns = nn.ModuleList([
+            CrossAttentionAdapter(dim=384, context_dim=time_dim) for _ in range(num_modulators)
         ])
     
     def forward(self, x, dfm_params=[]):
@@ -169,6 +199,11 @@ class VisionTransformerDFM(nn.Module):
             
             if i in funcs.idx:
                 x_modulated = self.modulators[modulator_idx](x, scale, shift)
+                
+                # Apply Cross-Attention
+                # x_modulated: (B, N, C)
+                # time_emb: (B, time_dim) -> (B, 1, time_dim)
+                x_modulated = self.cross_attns[modulator_idx](x_modulated, time_emb.unsqueeze(1))
                 
                 outputs.append([x_modulated])
                 modulator_idx += 1
