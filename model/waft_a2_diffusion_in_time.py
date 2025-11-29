@@ -131,15 +131,15 @@ class UpSampleMask4(nn.Module):
         self.up_sample_mask = nn.Sequential(
             nn.Conv2d(in_channels=dim, out_channels=256, kernel_size=3, padding=1, stride=1),
             nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels=256, out_channels=4 * 9, kernel_size=1, stride=1)
+            nn.Conv2d(in_channels=256, out_channels=16 * 9, kernel_size=1, stride=1)
         )
 
     def forward(self, data):
         """
-        :param data:  B, C, H, W
-        :return:  batch, 8*8*9, H, W
+        :param data:  B, C, H, W (1/4 resolution)
+        :return:  batch, 16*9, H, W
         """
-        mask = self.up_sample_mask(data)  # B, 64*6, H, W
+        mask = self.up_sample_mask(data)
         return mask
 
 class UpSampleMask8(nn.Module):
@@ -182,7 +182,7 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
         self.fnet = ResNet18Deconv(3, self.pretrain_dim)
         self.iter_dim = MODEL_CONFIGS[args.iterative_module]['features']
         self.um4 = UpSampleMask4(self.iter_dim)
-        self.um8 = UpSampleMask8(self.iter_dim)
+        # self.um8 = UpSampleMask8(self.iter_dim)
         
         self.refine_net = VisionTransformer(args.iterative_module, self.iter_dim, patch_size=8)
         
@@ -258,24 +258,13 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
         up_info = up_info.permute(0, 1, 4, 2, 5, 3)
         
         return up_flow.reshape(N, 2, factor*H, factor*W), up_info.reshape(N, C, factor*H, factor*W)
-
-    def up_sample_flow8(self, flow, mask):
-        B, _, H, W = flow.shape
-        flow = torch.nn.functional.unfold(8 * flow, kernel_size=[3, 3], stride=[1, 1], padding=[1, 1])
-        flow = flow.reshape(B, 2, 9, 1, 1, H, W)
-        mask = mask.reshape(B, 1, 9, 8, 8, H, W)
-        mask = torch.softmax(mask, dim=2)
-        up_flow = torch.sum(flow * mask, dim=2)
-        up_flow = up_flow.permute(0, 1, 4, 2, 5, 3).contiguous()
-        up_flow = up_flow.reshape(B, 2, H * 8, W * 8)
-        return up_flow
     
     def _prepare_targets(self, flow_gt):
         noise = torch.randn(flow_gt.shape, device=flow_gt.device)
         b = flow_gt.shape[0]
         t = torch.randint(0, self.num_timesteps, (b,), device=flow_gt.device).long()
         
-        x_start = flow_gt / self.norm_const_8x
+        x_start = flow_gt / self.norm_const_4x
         x_start = torch.clamp(x_start, min=-1.0, max=1.0) 
         x_start = x_start / self.scale
         x_t = self._q_sample(x_start=x_start, t=t, noise=noise)
@@ -292,13 +281,13 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
 
         return sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
 
-    def _train_dfm(self, fmap1_8x, fmap2_8x, flow_gt, net_8x, coords0_8x, coords1_8x):
-        b, c, h, w = fmap1_8x.shape
+    def _train_dfm(self, fmap1_4x, fmap2_4x, flow_gt, net_4x, coords0_4x, coords1_4x):
+        b, c, h, w = fmap1_4x.shape
         
-        flow_gt_8x = F.interpolate(flow_gt, (h, w), mode='bilinear', align_corners=True) / 8.0
-        x_t, noises, t = self._prepare_targets(flow_gt_8x)
-        x_t = x_t * self.norm_const_8x
-        coords1_8x = coords1_8x + x_t.float()
+        flow_gt_4x = F.interpolate(flow_gt, (h, w), mode='bilinear', align_corners=True) / 4.0
+        x_t, noises, t = self._prepare_targets(flow_gt_4x)
+        x_t = x_t * self.norm_const_4x
+        coords1_4x = coords1_4x + x_t.float()
 
         flow_predictions = []
         info_predictions = []
@@ -306,53 +295,53 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
         for ii in range(self.recurr_itrs):
             t_ii = (t - t / self.recurr_itrs * ii).int()
             
-            flow_8x = coords1_8x - coords0_8x
-            coords2 = (coords0_8x + flow_8x).detach()
-            warp_8x = bilinear_sampler(fmap2_8x, coords2.permute(0, 2, 3, 1))
+            flow_4x = coords1_4x - coords0_4x
+            coords2 = (coords0_4x + flow_4x).detach()
+            warp_4x = bilinear_sampler(fmap2_4x, coords2.permute(0, 2, 3, 1))
             
-            refine_inp = self.warp_linear(torch.cat([fmap1_8x, warp_8x, net_8x, flow_8x], dim=1))
+            refine_inp = self.warp_linear(torch.cat([fmap1_4x, warp_4x, net_4x, flow_4x], dim=1))
             
             refine_outs = self.refine_net_dfm(refine_inp, dfm_params=[t_ii, self.refine_net])
             
-            net_8x = self.refine_transform(torch.cat([refine_outs['out'], net_8x], dim=1))
+            net_4x = self.refine_transform(torch.cat([refine_outs['out'], net_4x], dim=1))
             
-            flow_update = self.flow_head(net_8x)
-            weight_update = .125 * self.um8(net_8x)
+            flow_update = self.flow_head(net_4x)
             
-            coords1_8x = coords1_8x + flow_update[:, :2]
-            info_8x = flow_update[:, 2:]
+            weight_update = .25 * self.um4(net_4x)
             
-            curr_flow_8x = coords1_8x - coords0_8x
+            coords1_4x = coords1_4x + flow_update[:, :2]
+            info_4x = flow_update[:, 2:]
             
-            flow_full, info_full = self.upsample_data(curr_flow_8x, info_8x, weight_update, factor=8)
+            curr_flow_4x = coords1_4x - coords0_4x
+            
+            flow_full, info_full = self.upsample_data(curr_flow_4x, info_4x, weight_update, factor=4)
 
             flow_predictions.append(flow_full)
             info_predictions.append(info_full)
 
-        return flow_predictions, coords1_8x, net_8x, info_predictions
+        return flow_predictions, coords1_4x, net_4x, info_predictions
 
     @torch.no_grad()
-    def _ddim_sample(self, fmap1_8x, fmap2_8x, net_8x, coords0_8x, coords1_8x):
-        b, c, h, w = fmap1_8x.shape
+    def _ddim_sample(self, fmap1_4x, fmap2_4x, net_4x, coords0_4x, coords1_4x):
+        b, c, h, w = fmap1_4x.shape
         shape = (b, 2, h, w)
         
         times = torch.linspace(-1, self.num_timesteps - 1, steps=self.sampling_timesteps + 1)
         times = list(reversed(times.int().tolist()))
         time_pairs = list(zip(times[:-1], times[1:]))
         
-        x_in = torch.randn(shape, device=fmap1_8x.device)
+        x_in = torch.randn(shape, device=fmap1_4x.device)
         
         flow_s = []
-        pred_s = None # [net, weight, coords]
+        pred_s = None 
         
         for i_ddim, time_s in enumerate(time_pairs):
             time, time_next = time_s
-            time_cond = torch.full((b,), time, device=fmap1_8x.device, dtype=torch.long)
+            time_cond = torch.full((b,), time, device=fmap1_4x.device, dtype=torch.long)
             
-            x_pred, inner_flow_s, pred_s = self._model_predictions_8x(x_in, time_cond, net_8x, fmap1_8x, fmap2_8x, coords0_8x, coords1_8x, i_ddim, pred_s)
-            flow_s.extend(inner_flow_s) # Visualization용
+            x_pred, inner_flow_s, pred_s = self._model_predictions_4x(x_in, time_cond, net_4x, fmap1_4x, fmap2_4x, coords0_4x, coords1_4x, i_ddim, pred_s)
+            flow_s.extend(inner_flow_s)
             
-            # DDIM Step
             if time_next < 0: continue
             alpha = self.alphas_cumprod[time]
             alpha_next = self.alphas_cumprod[time_next]
@@ -361,8 +350,8 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
             eps = (1 / (1 - alpha).sqrt()) * (x_in - alpha.sqrt() * x_pred)
             x_in = alpha_next.sqrt() * x_pred + (1 - alpha_next).sqrt() * eps
             
-        net_8x, _, coords1_8x = pred_s
-        return coords1_8x, net_8x, flow_s
+        net_4x, _, coords1_4x = pred_s
+        return coords1_4x, net_4x, flow_s
     
     def up_sample_flow4(self, flow, mask):
         B, _, H, W = flow.shape
@@ -376,10 +365,10 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
         return up_flow
 
 
-    def _model_predictions_8x(self, x, t, net, fmap1, fmap2, coords0, coords1, i_ddim, pred_last=None):
+    def _model_predictions_4x(self, x, t, net, fmap1, fmap2, coords0, coords1, i_ddim, pred_last=None):
         x_flow = torch.clamp(x, min=-1, max=1)
         x_flow = x_flow * self.n_sc
-        x_flow = x_flow * self.norm_const_8x
+        x_flow = x_flow * self.norm_const_4x
 
         if pred_last:
             net, _, coords1 = pred_last
@@ -391,11 +380,11 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
         for ii in range(self.recurr_itrs):
             t_ii = (t - (t - 0) / self.recurr_itrs * ii).int()
 
-            flow_8x = coords1 - coords0
-            coords2 = (coords0 + flow_8x).detach()
-            warp_8x = bilinear_sampler(fmap2, coords2.permute(0, 2, 3, 1))
+            flow_4x = coords1 - coords0
+            coords2 = (coords0 + flow_4x).detach()
+            warp_4x = bilinear_sampler(fmap2, coords2.permute(0, 2, 3, 1))
             
-            refine_inp = self.warp_linear(torch.cat([fmap1, warp_8x, net, flow_8x], dim=1))
+            refine_inp = self.warp_linear(torch.cat([fmap1, warp_4x, net, flow_4x], dim=1))
 
             with autocast(enabled=self.args.mixed_precision):
                 itr = ii
@@ -405,19 +394,19 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
                 net = self.refine_transform(torch.cat([refine_outs['out'], net], dim=1))
                 
                 flow_update = self.flow_head(net)
-                up_mask = .125 * self.um8(net)
+                up_mask = .25 * self.um4(net)
                 
                 delta_flow = flow_update[:, :2]
 
             coords1 = coords1 + delta_flow
 
             flow = coords1 - coords0
-            flow_up = self.up_sample_flow8(flow, up_mask)
+            flow_up = self.up_sample_flow4(flow, up_mask)
 
             flow_s.append(flow_up)
 
         flow = coords1 - coords0 
-        x_pred = flow / self.norm_const_8x
+        x_pred = flow / self.norm_const_4x
 
         return x_pred, flow_s, [net, up_mask, coords1]
 
@@ -472,37 +461,38 @@ class WAFTv2_FlowDiffuser_TwoStage(nn.Module):
         fmap1_4x = F.interpolate(fmap1_2x, scale_factor=0.5, mode='area')
         fmap2_4x = F.interpolate(fmap2_2x, scale_factor=0.5, mode='area')
 
-        fmap1_8x = F.interpolate(fmap1_4x, scale_factor=0.5, mode='area')
-        fmap2_8x = F.interpolate(fmap2_4x, scale_factor=0.5, mode='area')
+        # fmap1_8x = F.interpolate(fmap1_4x, scale_factor=0.5, mode='area')
+        # fmap2_8x = F.interpolate(fmap2_4x, scale_factor=0.5, mode='area')
         
         net_init = self.hidden_conv(torch.cat([fmap1_2x, fmap2_2x], dim=1))
         net_4x = F.avg_pool2d(net_init, 2, 2)
-        net_8x = F.avg_pool2d(net_4x, 2, 2)
+        # net_8x = F.avg_pool2d(net_4x, 2, 2)
 
-        coords0_8x = coords_grid(N, H//8, W//8, device=image1.device)
-        coords1_8x = coords0_8x.clone()
+        coords0_4x = coords_grid(N, H//4, W//4, device=image1.device)
+        coords1_4x = coords0_4x.clone()
         
-        self.norm_const_8x = torch.as_tensor([W//8, H//8], dtype=torch.float, device=image1.device).view(1, 2, 1, 1)
+        self.norm_const_4x = torch.as_tensor([W//4, H//4], dtype=torch.float, device=image1.device).view(1, 2, 1, 1)
         
         flow_list = []
         info_list = []
 
         if self.training:
-            coords1_8x = coords1_8x.detach()
-            flow_predictions_diff, coords1_8x, net_8x, info_predictions_diff = self._train_dfm(fmap1_8x, fmap2_8x, flow_gt, net_8x, coords0_8x, coords1_8x)
+            coords1_4x = coords1_4x.detach()
+            flow_predictions_diff, coords1_4x, net_4x, info_predictions_diff = self._train_dfm(fmap1_4x, fmap2_4x, flow_gt, net_4x, coords0_4x, coords1_4x)
             flow_list.extend(flow_predictions_diff)
             info_list.extend(info_predictions_diff)
         else:
-            coords1_8x, net_8x, _ = self._ddim_sample(fmap1_8x, fmap2_8x, net_8x, coords0_8x, coords1_8x)
+            coords1_4x, net_4x, _ = self._ddim_sample(fmap1_4x, fmap2_4x, net_4x, coords0_4x, coords1_4x)
         
-        current_flow_8x = coords1_8x - coords0_8x
-        flow_2x_init = F.interpolate(current_flow_8x * 4, scale_factor=4, mode='bilinear', align_corners=True)
-        
+        current_flow_4x = coords1_4x - coords0_4x
+
+        flow_2x_init = F.interpolate(current_flow_4x * 2, scale_factor=2, mode='bilinear', align_corners=True)
+
         coords0_2x = coords_grid(N, H//2, W//2, device=image1.device)
         coords1_2x = coords0_2x + flow_2x_init
         
-        net_2x = F.interpolate(net_8x, scale_factor=4, mode='bilinear', align_corners=True)
-        
+        net_2x = F.interpolate(net_4x, scale_factor=2, mode='bilinear', align_corners=True)
+
         flow_predictions_refine, info_predictions_refine = self._refine_stage(fmap1_2x, fmap2_2x, net_2x, coords0_2x, coords1_2x)
         flow_list.extend(flow_predictions_refine)
         info_list.extend(info_predictions_refine)
