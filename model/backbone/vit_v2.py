@@ -169,11 +169,8 @@ class VisionTransformerDFM(nn.Module):
         self.modulators = nn.ModuleList([
             ViTModulator(384) for _ in range(num_modulators)
         ])
-        
-        self.cross_attns = nn.ModuleList([
-            CrossAttentionAdapter(dim=384, context_dim=time_dim) for _ in range(num_modulators)
-        ])
-    
+
+
     def forward(self, x, dfm_params=[]):
         t, funcs = dfm_params
         
@@ -199,12 +196,7 @@ class VisionTransformerDFM(nn.Module):
             
             if i in funcs.idx:
                 x_modulated = self.modulators[modulator_idx](x, scale, shift)
-                
-                # Apply Cross-Attention
-                # x_modulated: (B, N, C)
-                # time_emb: (B, time_dim) -> (B, 1, time_dim)
-                x_modulated = self.cross_attns[modulator_idx](x_modulated, time_emb.unsqueeze(1))
-                
+    
                 outputs.append([x_modulated])
                 modulator_idx += 1
 
